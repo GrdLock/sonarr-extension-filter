@@ -8,13 +8,11 @@ NOTE: I have only personally tested this on MacOS with qBittorrent. It's designe
 
 - 🔍 Automatically inspects torrent file lists when Sonarr grabs a download
 - 🚫 Removes torrents containing blocked file extensions
-- ✅ Optional whitelist for allowed extensions (e.g., subtitles, NFO files)
 - 📋 Supports multiple download clients (qBittorrent, Transmission, Deluge)
 - 🐳 Docker-ready with easy deployment
 - ⚙️ Configurable via YAML file, environment variables, or Web UI
 - 📊 Comprehensive logging of all actions
 - 🔒 Optional blocklist integration to prevent re-downloads
-- 🔄 Lazy initialization - won't crash if download client is unavailable
 - 🌐 Web UI for easy configuration and monitoring
   - Real-time dashboard with statistics
   - Full configuration editor for all settings
@@ -86,7 +84,6 @@ Update the following values:
 - `sonarr.api_key` - Your Sonarr API key (Settings → General → Security)
 - `download_client.*` - Your download client details (or configure via Web UI)
 - `filtering.blocked_extensions` - Extensions to block
-- `filtering.allowed_extensions` - (Optional) Extensions to explicitly allow
 - `security.session_secret` - Random string for session encryption (generate with `openssl rand -hex 32`)
 - `webui.username` and `webui.password` - Web UI credentials (leave empty to disable auth)
 
@@ -215,9 +212,6 @@ filtering:
     - .exe
     - .msi
     - .bat
-  allowed_extensions:
-    - .srt
-    - .nfo
   action: remove_and_blocklist
 ```
 
@@ -328,8 +322,6 @@ The service uses exponential backoff with 3 retries (2s, 4s, 8s). If it still fa
 
 ### Service crashes on startup
 
-**Important:** The service now uses lazy initialization for download clients. It will NOT crash if your download client is unavailable at startup - it only connects when needed (when a webhook is received or when you test the connection).
-
 **If service still crashes, check:**
 1. Configuration file syntax (YAML format)
 2. API keys are correct
@@ -428,14 +420,8 @@ A: It lets you explicitly allow certain file types that you want to keep, like s
 **Q: How do I disable Web UI authentication?**
 A: Leave both the username and password fields empty in the configuration (either in config.yaml or via the Web UI settings).
 
-**Q: Do I need to have my download client running before starting the service?**
-A: No! The service uses lazy initialization and will only attempt to connect to your download client when needed (when processing a webhook or testing the connection).
-
 **Q: How do I use this with Docker when Sonarr is on my host machine?**
 A: In your config.yaml, use `host.docker.internal` instead of `localhost` for the Sonarr URL. Example: `http://host.docker.internal:8989`
-
-**Q: Why was port 5000 changed to 9090?**
-A: Port 5000 conflicts with macOS AirPlay Receiver. Ports 9090/9091 are cross-platform compatible and rarely used by default services.
 
 ## Development
 

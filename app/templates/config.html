@@ -97,12 +97,6 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="allowed-extensions" class="form-label">Allowed Extensions (Optional)</label>
-                        <textarea class="form-control font-monospace" id="allowed-extensions" rows="4" placeholder="One extension per line, e.g., .srt">{% if config.filtering.allowed_extensions %}{{ config.filtering.allowed_extensions|join('\n') }}{% endif %}</textarea>
-                        <small class="form-text text-muted">Extensions to explicitly allow (like subtitle files)</small>
-                    </div>
-
-                    <div class="mb-3">
                         <label for="action" class="form-label">Action on Match</label>
                         <select class="form-select" id="action">
                             <option value="remove" {% if config.filtering.action == 'remove' %}selected{% endif %}>Remove from queue</option>
@@ -277,11 +271,6 @@
             .map(ext => ext.trim())
             .filter(ext => ext.length > 0);
 
-        const allowed_extensions = document.getElementById('allowed-extensions').value
-            .split('\n')
-            .map(ext => ext.trim())
-            .filter(ext => ext.length > 0);
-
         // Build configuration object
         const configData = {
             sonarr_url: document.getElementById('sonarr-url').value,
@@ -292,7 +281,6 @@
             download_client_password: document.getElementById('client-password').value,
             download_client_rpc_path: document.getElementById('rpc-path').value,
             blocked_extensions: blocked_extensions,
-            allowed_extensions: allowed_extensions,
             action: document.getElementById('action').value,
             webui_username: document.getElementById('webui-username').value,
             webui_password: document.getElementById('webui-password').value,

@@ -27,7 +27,6 @@ class DownloadClientConfig:
 class FilteringConfig:
     blocked_extensions: List[str]
     action: str
-    allowed_extensions: List[str] = None
 
 
 @dataclass
@@ -112,8 +111,7 @@ class Config:
 
         self.filtering = FilteringConfig(
             blocked_extensions=blocked_extensions,
-            action=config_data.get('filtering', {}).get('action', os.getenv('ACTION_ON_MATCH', 'remove_and_blocklist')),
-            allowed_extensions=config_data.get('filtering', {}).get('allowed_extensions', [])
+            action=config_data.get('filtering', {}).get('action', os.getenv('ACTION_ON_MATCH', 'remove_and_blocklist'))
         )
 
         self.server = ServerConfig(

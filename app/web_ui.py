@@ -174,16 +174,6 @@ def create_web_ui_app(config, logger, stats):
                     config_data['filtering'] = {}
                 config_data['filtering']['blocked_extensions'] = data['blocked_extensions']
 
-            if 'allowed_extensions' in data:
-                if 'filtering' not in config_data:
-                    config_data['filtering'] = {}
-                # Only save if not empty (optional field)
-                if data['allowed_extensions']:
-                    config_data['filtering']['allowed_extensions'] = data['allowed_extensions']
-                elif 'allowed_extensions' in config_data.get('filtering', {}):
-                    # Remove if empty
-                    del config_data['filtering']['allowed_extensions']
-
             if 'action' in data:
                 if 'filtering' not in config_data:
                     config_data['filtering'] = {}

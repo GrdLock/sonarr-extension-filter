@@ -33,18 +33,12 @@ filtering:
     - .psd1
     - .dll
     - .sys
+	- .iso
+	- .rar
 
   # Action when blocked extension found
   # Options: "remove" or "remove_and_blocklist"
   action: "remove_and_blocklist"
-
-  # Ignore certain file extensions (e.g., subtitle files)
-  allowed_extensions:
-    - .srt
-    - .sub
-    - .idx
-    - .ssa
-    - .ass
 
 # Server Configuration
 server:
