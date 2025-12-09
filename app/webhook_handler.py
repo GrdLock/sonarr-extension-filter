@@ -55,11 +55,16 @@ class WebhookHandler:
             self.logger.debug(f"Attempt {attempt + 1}/{max_retries} to retrieve torrent {download_id}")
             torrent_data = self.download_client.get_torrent_files(download_id)
 
-            if torrent_data:
+            # Check if we have both torrent data AND a populated file list
+            if torrent_data and torrent_data.get('files'):
+                self.logger.debug(f"Successfully retrieved torrent with {len(torrent_data['files'])} files")
                 return torrent_data
 
             if attempt < max_retries - 1:
-                self.logger.debug(f"Torrent not found, waiting {wait_time * 2} seconds before retry...")
+                if torrent_data and not torrent_data.get('files'):
+                    self.logger.debug(f"Torrent found but file list not yet populated, waiting {wait_time * 2} seconds before retry...")
+                else:
+                    self.logger.debug(f"Torrent not found, waiting {wait_time * 2} seconds before retry...")
 
         return None
 
