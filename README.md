@@ -67,7 +67,7 @@ NOTE: I have only personally tested this on MacOS with qBittorrent. It's designe
 
 ```bash
 git clone <your-repo-url>
-cd Sonarr-Cleaner
+cd sonarr-extension-filter
 ```
 
 ### 2. Configure
