@@ -7,7 +7,7 @@ services:
       - "9090:9090"  # Webhook API endpoint
       - "9091:9091"  # Web UI
     volumes:
-      - ./config.yaml:/config/config.yaml:ro
+      - ./config.yaml:/config/config.yaml
       - ./logs:/app/logs
     environment:
       # Optional: Override config with environment variables
