@@ -52,3 +52,4 @@ htmlcov/
 .DS_Store
 Thumbs.db
 .claude/
+.gitignore

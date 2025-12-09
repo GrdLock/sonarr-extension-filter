@@ -2,6 +2,8 @@
 
 A Python-based web service that automatically monitors Sonarr downloads and removes torrents containing files with unwanted extensions (e.g., `.exe`, `.msi`, `.bat`). This prevents potentially malicious or unwanted files from being downloaded.
 
+NOTE: I have only personally tested this on MacOS with qBittorrent. It's designed to run as a Docker container, so it theoretically should work fine on Windows or Linux as well. And I've included support for Transmission and Deluge, however have not actually tested this functionality.
+
 ## Features
 
 - 🔍 Automatically inspects torrent file lists when Sonarr grabs a download
@@ -366,41 +368,6 @@ If you see errors like "Connection refused" when the service tries to reach Sona
        name: your_existing_network_name
    ```
 
-## Security Considerations
-
-1. **API Keys**: Never commit API keys to version control
-2. **Network**: Run in isolated Docker network
-3. **HTTPS**: Use reverse proxy (nginx/Caddy) for HTTPS access
-4. **Authentication**: Enable Web UI authentication for production
-5. **Session Secret**: Use a strong, random session secret
-6. **Updates**: Keep dependencies updated
-
-### Reverse Proxy Example (Nginx)
-
-```nginx
-server {
-    listen 443 ssl;
-    server_name sonarr-filter.yourdomain.com;
-
-    ssl_certificate /path/to/cert.pem;
-    ssl_certificate_key /path/to/key.pem;
-
-    # Web UI
-    location / {
-        proxy_pass http://localhost:9091;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-
-    # Webhook API
-    location /webhook {
-        proxy_pass http://localhost:9090/webhook;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-```
-
 ## Maintenance
 
 ### Updating
@@ -435,7 +402,7 @@ tail -f logs/sonarr-extension-filter.log
 ## FAQ
 
 **Q: Will this work with Radarr?**
-A: With minor modifications, yes. The webhook structure is similar.
+A: With minor modifications, yes. The webhook structure is similar. But the current build here is designed specifically for Sonarr
 
 **Q: Does this slow down downloads?**
 A: Minimal impact - 2-8 second delay to check file list (with retries).
