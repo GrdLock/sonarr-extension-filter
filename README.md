@@ -4,7 +4,7 @@ A Python-based web service that automatically monitors Sonarr downloads and remo
 
 NOTE: I have only personally tested this on MacOS with qBittorrent. It's designed to run as a Docker container, so it theoretically should work fine on Windows or Linux as well. And I've included support for Transmission and Deluge, however have not actually tested this functionality.
 
-![alt text](https://github.com/GrdLock/sonarr-extension-filter/app/homepage.png "Main Screen")
+![alt text](https://raw.githubusercontent.com/GrdLock/sonarr-extension-filter/refs/heads/main/app/homepage.png "Main Screen")
 
 ## Features
 
