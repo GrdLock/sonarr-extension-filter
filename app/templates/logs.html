@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Logs - Sonarr Extension Filter{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-file-alt"></i> Logs
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
+                <h5 class="mb-0">Log Viewer</h5>
+                <div class="d-flex gap-2 mt-2 mt-md-0">
+                    <select class="form-select form-select-sm" id="lines-select" style="width: auto;">
+                        <option value="50">50 lines</option>
+                        <option value="100" selected>100 lines</option>
+                        <option value="250">250 lines</option>
+                        <option value="500">500 lines</option>
+                        <option value="1000">1000 lines</option>
+                    </select>
+                    <button class="btn btn-sm btn-primary" onclick="refreshLogs()">
+                        <i class="fas fa-sync"></i> Refresh
+                    </button>
+                    <div class="form-check form-switch ms-2">
+                        <input class="form-check-input" type="checkbox" id="auto-refresh">
+                        <label class="form-check-label" for="auto-refresh">
+                            Auto-refresh
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <input type="text" class="form-control" id="search-box" placeholder="Search logs...">
+                </div>
+
+                <div id="log-container" class="log-viewer">
+                    <div class="text-center py-4">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-2">
+                    <small class="text-muted" id="log-info">Loading logs...</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let autoRefreshInterval = null;
+
+    // Load logs on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        refreshLogs();
+
+        // Auto-refresh toggle
+        document.getElementById('auto-refresh').addEventListener('change', function() {
+            if (this.checked) {
+                autoRefreshInterval = setInterval(refreshLogs, 5000);
+            } else {
+                if (autoRefreshInterval) {
+                    clearInterval(autoRefreshInterval);
+                    autoRefreshInterval = null;
+                }
+            }
+        });
+
+        // Search functionality
+        document.getElementById('search-box').addEventListener('input', function() {
+            filterLogs(this.value);
+        });
+
+        // Lines select change
+        document.getElementById('lines-select').addEventListener('change', function() {
+            refreshLogs();
+        });
+    });
+
+    async function refreshLogs() {
+        const lines = document.getElementById('lines-select').value;
+
+        try {
+            const response = await fetch(`/api/logs?lines=${lines}`);
+            const data = await response.json();
+
+            if (data.logs) {
+                displayLogs(data.logs);
+                document.getElementById('log-info').textContent =
+                    `Showing last ${data.logs.length} lines of ${data.total_lines} total lines`;
+            } else if (data.error) {
+                document.getElementById('log-container').innerHTML = `
+                    <div class="alert alert-danger" role="alert">
+                        <i class="fas fa-times-circle"></i> Error: ${data.error}
+                    </div>
+                `;
+            }
+        } catch (error) {
+            document.getElementById('log-container').innerHTML = `
+                <div class="alert alert-danger" role="alert">
+                    <i class="fas fa-times-circle"></i> Error loading logs: ${error.message}
+                </div>
+            `;
+        }
+    }
+
+    function displayLogs(logs) {
+        const container = document.getElementById('log-container');
+
+        if (logs.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center py-4">No logs available</p>';
+            return;
+        }
+
+        let html = '<pre class="log-content mb-0">';
+        logs.forEach(line => {
+            if (line.trim()) {
+                const coloredLine = colorizeLogLine(line);
+                html += `<div class="log-line" data-line="${escapeHtml(line)}">${coloredLine}</div>`;
+            }
+        });
+        html += '</pre>';
+
+        container.innerHTML = html;
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function colorizeLogLine(line) {
+        line = escapeHtml(line);
+
+        if (line.includes('ERROR')) {
+            return `<span class="log-error">${line}</span>`;
+        } else if (line.includes('WARNING')) {
+            return `<span class="log-warning">${line}</span>`;
+        } else if (line.includes('INFO')) {
+            return `<span class="log-info">${line}</span>`;
+        } else if (line.includes('DEBUG')) {
+            return `<span class="log-debug">${line}</span>`;
+        }
+        return line;
+    }
+
+    function filterLogs(searchTerm) {
+        const logLines = document.querySelectorAll('.log-line');
+        const lowerSearchTerm = searchTerm.toLowerCase();
+
+        logLines.forEach(line => {
+            const text = line.getAttribute('data-line').toLowerCase();
+            if (text.includes(lowerSearchTerm)) {
+                line.style.display = '';
+            } else {
+                line.style.display = 'none';
+            }
+        });
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+</script>
+{% endblock %}

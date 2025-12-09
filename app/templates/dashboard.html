@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Sonarr Extension Filter{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-dashboard"></i> Dashboard
+        </h1>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-check-circle"></i> Processed
+                </h5>
+                <h2 class="mb-0" id="stat-processed">{{ stats.total_processed }}</h2>
+                <small>Total downloads checked</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-danger text-white">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-ban"></i> Blocked
+                </h5>
+                <h2 class="mb-0" id="stat-blocked">{{ stats.total_blocked }}</h2>
+                <small>Downloads removed</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-exclamation-triangle"></i> Errors
+                </h5>
+                <h2 class="mb-0" id="stat-errors">{{ stats.total_errors }}</h2>
+                <small>Processing errors</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-clock"></i> Uptime
+                </h5>
+                <h2 class="mb-0" id="stat-uptime">{{ stats.uptime_str }}</h2>
+                <small>Service running</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts and Info -->
+<div class="row mb-4">
+    <!-- Blocked Extensions -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-bar"></i> Blocked Extensions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="extensions-chart">
+                    {% if stats.extension_counts %}
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Extension</th>
+                                    <th class="text-end">Count</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ext, count in stats.extension_counts.items() %}
+                                <tr>
+                                    <td><code>{{ ext }}</code></td>
+                                    <td class="text-end"><span class="badge bg-danger">{{ count }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <p class="text-muted text-center py-4">No blocked files yet</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Configuration -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-cog"></i> Current Configuration
+                </h5>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Blocked Extensions:</dt>
+                    <dd class="col-sm-7">
+                        <small>{{ config.filtering.blocked_extensions|length }} extensions</small>
+                        <div class="mt-1">
+                            {% for ext in config.filtering.blocked_extensions[:5] %}
+                                <span class="badge bg-secondary">{{ ext }}</span>
+                            {% endfor %}
+                            {% if config.filtering.blocked_extensions|length > 5 %}
+                                <span class="badge bg-secondary">+{{ config.filtering.blocked_extensions|length - 5 }} more</span>
+                            {% endif %}
+                        </div>
+                    </dd>
+
+                    <dt class="col-sm-5">Action on Match:</dt>
+                    <dd class="col-sm-7">{{ config.filtering.action }}</dd>
+
+                    <dt class="col-sm-5">Download Client:</dt>
+                    <dd class="col-sm-7">{{ config.download_client.type|title }}</dd>
+
+                    <dt class="col-sm-5">Log Level:</dt>
+                    <dd class="col-sm-7">{{ config.logging.level }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-list"></i> Recent Activity
+                </h5>
+                <button class="btn btn-sm btn-primary" onclick="refreshStats()">
+                    <i class="fas fa-sync"></i> Refresh
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="recent-activity">
+                    {% if stats.recent_activity %}
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Type</th>
+                                    <th>File/Message</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for activity in stats.recent_activity %}
+                                <tr>
+                                    <td><small>{{ activity.time }}</small></td>
+                                    <td>
+                                        <span class="badge {% if activity.type == 'blocked' %}bg-danger{% else %}bg-info{% endif %}">
+                                            {{ activity.type }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <code>{{ activity.file or activity.message }}</code>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <p class="text-muted text-center py-4">No recent activity</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Auto-refresh stats every 10 seconds
+    setInterval(refreshStats, 10000);
+
+    function refreshStats() {
+        fetch('/api/stats')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('stat-processed').textContent = data.total_processed;
+                document.getElementById('stat-blocked').textContent = data.total_blocked;
+                document.getElementById('stat-errors').textContent = data.total_errors;
+                document.getElementById('stat-uptime').textContent = data.uptime_str;
+            })
+            .catch(error => console.error('Error refreshing stats:', error));
+    }
+</script>
+{% endblock %}

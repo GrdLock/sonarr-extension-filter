@@ -1,0 +1,8 @@
+Flask==3.0.0
+Flask-CORS==4.0.0
+Flask-Limiter==3.5.0
+requests==2.31.0
+PyYAML==6.0.1
+bencodepy==0.9.5
+python-dotenv==1.0.0
+gunicorn==21.2.0

@@ -1,0 +1,74 @@
+# Sonarr Configuration
+sonarr:
+  url: "http://localhost:8989"
+  api_key: "your_sonarr_api_key_here"
+
+# Download Client Configuration
+download_client:
+  type: "qbittorrent"  # Options: qbittorrent, transmission, deluge
+  url: "http://localhost:8080"
+  username: "admin"
+  password: "adminpass"
+  # For Transmission/Deluge RPC
+  # rpc_path: "/transmission/rpc"  # Optional
+
+# Extension Filtering
+filtering:
+  # List of file extensions to block (case-insensitive)
+  blocked_extensions:
+    - .exe
+    - .msi
+    - .bat
+    - .com
+    - .cmd
+    - .scr
+    - .vbs
+    - .vbe
+    - .js
+    - .jse
+    - .wsf
+    - .wsh
+    - .ps1
+    - .psm1
+    - .psd1
+    - .dll
+    - .sys
+
+  # Action when blocked extension found
+  # Options: "remove" or "remove_and_blocklist"
+  action: "remove_and_blocklist"
+
+  # Ignore certain file extensions (e.g., subtitle files)
+  allowed_extensions:
+    - .srt
+    - .sub
+    - .idx
+    - .ssa
+    - .ass
+
+# Server Configuration
+server:
+  host: "0.0.0.0"
+  port: 9090
+  debug: false
+
+# Web UI Configuration
+webui:
+  enabled: true
+  port: 9091
+  username: "admin"          # Optional: Leave empty for no auth
+  password: "changeme"       # Optional: Leave empty for no auth
+
+# Security Configuration
+security:
+  session_secret: "change-me-to-a-random-string-min-32-chars"
+  webhook_rate_limit: "60/hour"
+  max_payload_size: 1048576  # 1MB
+
+# Logging Configuration
+logging:
+  level: "INFO"  # Options: DEBUG, INFO, WARNING, ERROR
+  file: "logs/sonarr-extension-filter.log"
+  max_bytes: 10485760  # 10MB
+  backup_count: 5
+  console: true

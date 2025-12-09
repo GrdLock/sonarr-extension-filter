@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+
+{% block title %}Configuration - Sonarr Extension Filter{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-cog"></i> Configuration
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Configuration Form -->
+    <div class="col-md-8">
+        <form id="config-form">
+            <!-- Sonarr Configuration -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-tv"></i> Sonarr Configuration</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="sonarr-url" class="form-label">Sonarr URL</label>
+                        <input type="text" class="form-control" id="sonarr-url" value="{{ config.sonarr.url }}" placeholder="http://localhost:8989">
+                        <small class="form-text text-muted">Full URL to your Sonarr instance (include http:// or https://)</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="sonarr-api-key" class="form-label">API Key</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="sonarr-api-key" value="{{ config.sonarr.api_key }}" placeholder="Your Sonarr API key">
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('sonarr-api-key')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <small class="form-text text-muted">Found in Sonarr: Settings → General → Security</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Download Client Configuration -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-download"></i> Download Client Configuration</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="client-type" class="form-label">Client Type</label>
+                        <select class="form-select" id="client-type" onchange="updateClientFields()">
+                            <option value="qbittorrent" {% if config.download_client.type == 'qbittorrent' %}selected{% endif %}>qBittorrent</option>
+                            <option value="transmission" {% if config.download_client.type == 'transmission' %}selected{% endif %}>Transmission</option>
+                            <option value="deluge" {% if config.download_client.type == 'deluge' %}selected{% endif %}>Deluge</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="client-url" class="form-label">Client URL</label>
+                        <input type="text" class="form-control" id="client-url" value="{{ config.download_client.url }}" placeholder="http://localhost:8080">
+                        <small class="form-text text-muted">Full URL to your download client</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="client-username" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="client-username" value="{{ config.download_client.username }}" placeholder="admin">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="client-password" class="form-label">Password</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="client-password" value="{{ config.download_client.password }}" placeholder="Password">
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('client-password')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-3" id="rpc-path-field" style="display: none;">
+                        <label for="rpc-path" class="form-label">RPC Path</label>
+                        <input type="text" class="form-control" id="rpc-path" value="{{ config.download_client.rpc_path or '' }}" placeholder="/transmission/rpc">
+                        <small class="form-text text-muted">Only needed for Transmission (default: /transmission/rpc) or Deluge</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Extension Filtering -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-shield-alt"></i> Extension Filtering</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="blocked-extensions" class="form-label">Blocked Extensions</label>
+                        <textarea class="form-control font-monospace" id="blocked-extensions" rows="8" placeholder="One extension per line, e.g., .exe">{{ config.filtering.blocked_extensions|join('\n') }}</textarea>
+                        <small class="form-text text-muted">Enter one extension per line (include the dot, e.g., .exe)</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="allowed-extensions" class="form-label">Allowed Extensions (Optional)</label>
+                        <textarea class="form-control font-monospace" id="allowed-extensions" rows="4" placeholder="One extension per line, e.g., .srt">{% if config.filtering.allowed_extensions %}{{ config.filtering.allowed_extensions|join('\n') }}{% endif %}</textarea>
+                        <small class="form-text text-muted">Extensions to explicitly allow (like subtitle files)</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="action" class="form-label">Action on Match</label>
+                        <select class="form-select" id="action">
+                            <option value="remove" {% if config.filtering.action == 'remove' %}selected{% endif %}>Remove from queue</option>
+                            <option value="remove_and_blocklist" {% if config.filtering.action == 'remove_and_blocklist' %}selected{% endif %}>Remove and add to blocklist</option>
+                        </select>
+                        <small class="form-text text-muted">What to do when a blocked extension is found</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Web UI Security -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-lock"></i> Web UI Security</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info" role="alert">
+                        <i class="fas fa-info-circle"></i> Leave username and password empty to disable authentication
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="webui-username" class="form-label">Web UI Username</label>
+                        <input type="text" class="form-control" id="webui-username" value="{{ config.webui.username or '' }}" placeholder="admin">
+                        <small class="form-text text-muted">Leave empty to disable authentication</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="webui-password" class="form-label">Web UI Password</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="webui-password" value="{{ config.webui.password or '' }}" placeholder="Password">
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('webui-password')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <small class="form-text text-muted">Leave empty to disable authentication</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logging -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-file-alt"></i> Logging</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="log-level" class="form-label">Log Level</label>
+                        <select class="form-select" id="log-level">
+                            <option value="DEBUG" {% if config.logging.level == 'DEBUG' %}selected{% endif %}>DEBUG (Most verbose)</option>
+                            <option value="INFO" {% if config.logging.level == 'INFO' %}selected{% endif %}>INFO (Recommended)</option>
+                            <option value="WARNING" {% if config.logging.level == 'WARNING' %}selected{% endif %}>WARNING (Quiet)</option>
+                            <option value="ERROR" {% if config.logging.level == 'ERROR' %}selected{% endif %}>ERROR (Minimal)</option>
+                        </select>
+                        <small class="form-text text-muted">Logging verbosity level</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-warning" role="alert">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>Important:</strong> Changes require a service restart to take effect.
+                <br><small>Run: <code>docker-compose restart</code></small>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="fas fa-save"></i> Save All Configuration
+            </button>
+        </form>
+
+        <div id="save-result" class="mt-3"></div>
+    </div>
+
+    <!-- Connection Tests & Info -->
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">Connection Tests</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-primary" onclick="testSonarr()">
+                        <i class="fas fa-tv"></i> Test Sonarr Connection
+                    </button>
+                    <button class="btn btn-outline-primary" onclick="testDownloadClient()">
+                        <i class="fas fa-download"></i> Test Download Client
+                    </button>
+                </div>
+                <div id="test-results" class="mt-3"></div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">Quick Info</h5>
+            </div>
+            <div class="card-body">
+                <dl class="mb-0 small">
+                    <dt>Webhook Endpoint:</dt>
+                    <dd><code>http://localhost:9090/webhook</code></dd>
+
+                    <dt>Web UI Port:</dt>
+                    <dd>{{ config.webui.port }}</dd>
+
+                    <dt>Current Client:</dt>
+                    <dd>{{ config.download_client.type|title }}</dd>
+
+                    <dt>Blocked Extensions:</dt>
+                    <dd>{{ config.filtering.blocked_extensions|length }} extensions</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Tips</h5>
+            </div>
+            <div class="card-body small">
+                <ul class="mb-0">
+                    <li>Use <strong>Test Connection</strong> buttons after changing URLs</li>
+                    <li>Docker users: Use container names or <code>host.docker.internal</code> for URLs</li>
+                    <li>Always test after saving changes</li>
+                    <li>Keep your API keys secure</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Show/hide RPC path field based on client type
+    function updateClientFields() {
+        const clientType = document.getElementById('client-type').value;
+        const rpcPathField = document.getElementById('rpc-path-field');
+
+        if (clientType === 'transmission' || clientType === 'deluge') {
+            rpcPathField.style.display = 'block';
+        } else {
+            rpcPathField.style.display = 'none';
+        }
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateClientFields();
+    });
+
+    // Toggle password visibility
+    function togglePassword(fieldId) {
+        const field = document.getElementById(fieldId);
+        const button = field.nextElementSibling.querySelector('i');
+
+        if (field.type === 'password') {
+            field.type = 'text';
+            button.classList.remove('fa-eye');
+            button.classList.add('fa-eye-slash');
+        } else {
+            field.type = 'password';
+            button.classList.remove('fa-eye-slash');
+            button.classList.add('fa-eye');
+        }
+    }
+
+    // Handle form submission
+    document.getElementById('config-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        // Parse extensions
+        const blocked_extensions = document.getElementById('blocked-extensions').value
+            .split('\n')
+            .map(ext => ext.trim())
+            .filter(ext => ext.length > 0);
+
+        const allowed_extensions = document.getElementById('allowed-extensions').value
+            .split('\n')
+            .map(ext => ext.trim())
+            .filter(ext => ext.length > 0);
+
+        // Build configuration object
+        const configData = {
+            sonarr_url: document.getElementById('sonarr-url').value,
+            sonarr_api_key: document.getElementById('sonarr-api-key').value,
+            download_client_type: document.getElementById('client-type').value,
+            download_client_url: document.getElementById('client-url').value,
+            download_client_username: document.getElementById('client-username').value,
+            download_client_password: document.getElementById('client-password').value,
+            download_client_rpc_path: document.getElementById('rpc-path').value,
+            blocked_extensions: blocked_extensions,
+            allowed_extensions: allowed_extensions,
+            action: document.getElementById('action').value,
+            webui_username: document.getElementById('webui-username').value,
+            webui_password: document.getElementById('webui-password').value,
+            log_level: document.getElementById('log-level').value
+        };
+
+        try {
+            const response = await fetch('/api/config/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(configData)
+            });
+
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                document.getElementById('save-result').innerHTML = `
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="fas fa-check-circle"></i> <strong>Success!</strong> ${result.message}
+                        <br><small class="mt-2 d-block">Remember to restart the service: <code>docker-compose restart</code></small>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                `;
+                // Scroll to result
+                document.getElementById('save-result').scrollIntoView({ behavior: 'smooth' });
+            } else {
+                document.getElementById('save-result').innerHTML = `
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="fas fa-times-circle"></i> <strong>Error:</strong> ${result.message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            document.getElementById('save-result').innerHTML = `
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="fas fa-times-circle"></i> <strong>Error:</strong> ${error.message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+        }
+    });
+
+    async function testSonarr() {
+        document.getElementById('test-results').innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Testing Sonarr...';
+
+        try {
+            const response = await fetch('/api/test/sonarr');
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                document.getElementById('test-results').innerHTML = `
+                    <div class="alert alert-success mb-0" role="alert">
+                        <i class="fas fa-check-circle"></i> ${result.message}
+                    </div>
+                `;
+            } else {
+                document.getElementById('test-results').innerHTML = `
+                    <div class="alert alert-danger mb-0" role="alert">
+                        <i class="fas fa-times-circle"></i> ${result.message}
+                    </div>
+                `;
+            }
+        } catch (error) {
+            document.getElementById('test-results').innerHTML = `
+                <div class="alert alert-danger mb-0" role="alert">
+                    <i class="fas fa-times-circle"></i> Error: ${error.message}
+                </div>
+            `;
+        }
+    }
+
+    async function testDownloadClient() {
+        document.getElementById('test-results').innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Testing download client...';
+
+        try {
+            const response = await fetch('/api/test/download-client');
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                document.getElementById('test-results').innerHTML = `
+                    <div class="alert alert-success mb-0" role="alert">
+                        <i class="fas fa-check-circle"></i> ${result.message}
+                    </div>
+                `;
+            } else {
+                document.getElementById('test-results').innerHTML = `
+                    <div class="alert alert-danger mb-0" role="alert">
+                        <i class="fas fa-times-circle"></i> ${result.message}
+                    </div>
+                `;
+            }
+        } catch (error) {
+            document.getElementById('test-results').innerHTML = `
+                <div class="alert alert-danger mb-0" role="alert">
+                    <i class="fas fa-times-circle"></i> Error: ${error.message}
+                </div>
+            `;
+        }
+    }
+</script>
+{% endblock %}

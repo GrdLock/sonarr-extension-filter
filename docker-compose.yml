@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  sonarr-extension-filter:
+    build: .
+    container_name: sonarr-extension-filter
+    restart: unless-stopped
+    ports:
+      - "9090:9090"  # Webhook API endpoint
+      - "9091:9091"  # Web UI
+    volumes:
+      - ./config.yaml:/config/config.yaml:ro
+      - ./logs:/app/logs
+    environment:
+      # Optional: Override config with environment variables
+      - SONARR_URL=${SONARR_URL:-}
+      - SONARR_API_KEY=${SONARR_API_KEY:-}
+      - DOWNLOAD_CLIENT_TYPE=${DOWNLOAD_CLIENT_TYPE:-}
+      - DOWNLOAD_CLIENT_URL=${DOWNLOAD_CLIENT_URL:-}
+      - DOWNLOAD_CLIENT_USERNAME=${DOWNLOAD_CLIENT_USERNAME:-}
+      - DOWNLOAD_CLIENT_PASSWORD=${DOWNLOAD_CLIENT_PASSWORD:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - SERVER_PORT=${SERVER_PORT:-9090}
+      - WEB_UI_ENABLED=${WEB_UI_ENABLED:-true}
+      - WEB_UI_PORT=${WEB_UI_PORT:-9091}
+      - WEB_UI_USERNAME=${WEB_UI_USERNAME:-}
+      - WEB_UI_PASSWORD=${WEB_UI_PASSWORD:-}
+    networks:
+      - arr-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:9090/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  arr-network:
+    driver: bridge
