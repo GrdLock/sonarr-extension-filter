@@ -443,16 +443,6 @@ sonarr-extension-filter/
 └── logs/
 ```
 
-### Running Tests
-
-```bash
-# Install test dependencies
-pip install pytest pytest-cov
-
-# Run tests (when implemented)
-pytest tests/
-```
-
 ## Contributing
 
 Contributions are welcome! Please:
@@ -492,9 +482,7 @@ For issues, questions, or feature requests:
 - Exponential backoff for torrent retrieval (2s, 4s, 8s delays)
 - Lazy initialization for download clients (no crash on startup if client unavailable)
 - Comprehensive logging with live viewer
-- Ports changed to 9090/9091 for cross-platform compatibility
 - Session-based authentication with configurable credentials
-- Optional allowed extensions whitelist feature
 
 ---
 
