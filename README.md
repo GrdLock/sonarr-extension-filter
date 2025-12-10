@@ -483,7 +483,3 @@ For issues, questions, or feature requests:
 - Lazy initialization for download clients (no crash on startup if client unavailable)
 - Comprehensive logging with live viewer
 - Session-based authentication with configurable credentials
-
----
-
-**Made with ❤️ for the *arr community**
