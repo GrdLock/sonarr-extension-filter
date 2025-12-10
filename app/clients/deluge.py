@@ -55,27 +55,62 @@ class DelugeClient(BaseDownloadClient):
         self.request_id += 1
         return self.request_id
 
-    def _rpc_call(self, method, params=None):
-        """Make RPC call to Deluge"""
-        payload = {
-            'method': method,
-            'params': params or [],
-            'id': self._get_request_id()
-        }
+    def _rpc_call(self, method, params=None, max_retries=1):
+        """
+        Make RPC call to Deluge with automatic retry on authentication failure
 
-        try:
-            response = self.session.post(
-                self.rpc_url,
-                json=payload,
-                timeout=10
-            )
+        Args:
+            method: RPC method name
+            params: Method parameters
+            max_retries: Number of retry attempts on authentication failure
 
-            response.raise_for_status()
-            return response.json()
+        Returns:
+            Response JSON or None
+        """
+        for attempt in range(max_retries + 1):
+            self._ensure_authenticated()
 
-        except Exception as e:
-            self.logger.error(f"Deluge RPC call failed: {str(e)}")
-            return None
+            payload = {
+                'method': method,
+                'params': params or [],
+                'id': self._get_request_id()
+            }
+
+            try:
+                response = self.session.post(
+                    self.rpc_url,
+                    json=payload,
+                    timeout=10
+                )
+
+                # Check for authentication errors (401 or specific error responses)
+                if response.status_code == 401 and attempt < max_retries:
+                    self.logger.warning("Deluge session expired (401), re-authenticating...")
+                    self._authenticated = False
+                    continue
+
+                response.raise_for_status()
+                result = response.json()
+
+                # Deluge returns error in 'error' field when not authenticated
+                if result.get('error') and attempt < max_retries:
+                    error_message = result.get('error', {}).get('message', '')
+                    if 'not authenticated' in error_message.lower() or 'auth' in error_message.lower():
+                        self.logger.warning(f"Deluge authentication error: {error_message}, re-authenticating...")
+                        self._authenticated = False
+                        continue
+
+                return result
+
+            except requests.exceptions.RequestException as e:
+                if attempt < max_retries:
+                    self.logger.warning(f"Deluge request failed, retrying... ({str(e)})")
+                    self._authenticated = False
+                    continue
+                self.logger.error(f"Deluge RPC call failed: {str(e)}")
+                return None
+
+        return None
 
     def get_torrent_files(self, download_id):
         """Get files in a torrent"""
