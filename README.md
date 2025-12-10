@@ -195,15 +195,9 @@ Default blocked extensions include:
 - `.vbs`, `.vbe`, `.js`, `.jse`, `.wsf`, `.wsh` - Scripts
 - `.ps1`, `.psm1`, `.psd1` - PowerShell
 - `.dll`, `.sys` - System files
+- `.rar`, `.iso` - Other common fake TV torrents
 
 You can customize this list in the configuration or via the Web UI.
-
-**Allowed Extensions (Optional)**
-
-You can optionally specify extensions to explicitly allow, even if they might otherwise be flagged. This is useful for:
-- Subtitle files (`.srt`, `.sub`, `.ass`)
-- NFO files (`.nfo`)
-- Other legitimate files that might be in torrents
 
 Example in config.yaml:
 ```yaml
@@ -241,7 +235,6 @@ The configuration page allows you to edit all major settings through the Web UI:
 
 **Extension Filtering:**
 - Blocked extensions list
-- Allowed extensions list (optional - explicitly allow certain files like subtitles)
 - Action on match (remove or remove and blocklist)
 
 **Web UI Security:**
