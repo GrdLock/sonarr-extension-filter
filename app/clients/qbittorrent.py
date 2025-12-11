@@ -12,6 +12,11 @@ class QBittorrentClient(BaseDownloadClient):
     def __init__(self, config, logger):
         super().__init__(config, logger)
         self.session = requests.Session()
+        # Set headers required for qBittorrent CSRF protection
+        self.session.headers.update({
+            'Referer': self.config.url,
+            'Origin': self.config.url
+        })
         self._authenticated = False
 
     def _ensure_authenticated(self):
