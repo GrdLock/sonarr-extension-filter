@@ -58,21 +58,114 @@ class SonarrAPI:
                 'blocklist': str(blocklist).lower()
             }
 
+            self.logger.info(f"Removing queue item {queue_id} with params: {params}")
+            self.logger.debug(f"DELETE URL: {url}")
+
             response = requests.delete(
                 url,
                 headers=self.headers,
                 params=params,
                 timeout=10
             )
+
+            self.logger.debug(f"Response status: {response.status_code}")
+            self.logger.debug(f"Response body: {response.text}")
+
             response.raise_for_status()
 
             action = "removed and blocklisted" if blocklist else "removed"
-            self.logger.info(f"Queue item {queue_id} {action}")
+            self.logger.info(f"Queue item {queue_id} {action} successfully")
+
+            # Verify blocklist was applied if requested
+            if blocklist:
+                self.logger.info("Verifying item was added to blocklist...")
+                # Small delay to allow Sonarr to process
+                import time
+                time.sleep(1)
+                blocklist_items = self.get_blocklist()
+                self.logger.info(f"Current blocklist has {len(blocklist_items)} items")
 
             return True
 
+        except requests.exceptions.HTTPError as e:
+            self.logger.error(f"HTTP error removing queue item {queue_id}: {e.response.status_code} - {e.response.text}")
+            return False
         except Exception as e:
             self.logger.error(f"Failed to remove queue item {queue_id}: {str(e)}")
+            return False
+
+    def get_blocklist(self, page=1, page_size=20):
+        """
+        Get blocklist items
+
+        Args:
+            page: Page number
+            page_size: Number of items per page
+
+        Returns:
+            list: List of blocklist items
+        """
+        try:
+            url = f"{self.base_url}/blocklist"
+            params = {
+                'page': page,
+                'pageSize': page_size
+            }
+
+            response = requests.get(url, headers=self.headers, params=params, timeout=10)
+            response.raise_for_status()
+
+            data = response.json()
+            records = data.get('records', [])
+
+            self.logger.debug(f"Retrieved {len(records)} blocklist items (total: {data.get('totalRecords', 0)})")
+            return records
+
+        except Exception as e:
+            self.logger.error(f"Failed to get blocklist from Sonarr: {str(e)}")
+            return []
+
+    def add_to_blocklist(self, series_id, source_title):
+        """
+        Directly add an item to the blocklist
+
+        Args:
+            series_id: Series ID
+            source_title: Source release title
+
+        Returns:
+            bool: True if successful
+        """
+        try:
+            url = f"{self.base_url}/blocklist"
+            payload = {
+                'seriesId': series_id,
+                'sourceTitle': source_title
+            }
+
+            self.logger.info(f"Adding to blocklist: {source_title}")
+            self.logger.debug(f"Payload: {payload}")
+
+            response = requests.post(
+                url,
+                headers=self.headers,
+                json=payload,
+                timeout=10
+            )
+
+            self.logger.debug(f"Response status: {response.status_code}")
+            self.logger.debug(f"Response body: {response.text}")
+
+            response.raise_for_status()
+
+            self.logger.info(f"Successfully added {source_title} to blocklist")
+            return True
+
+        except requests.exceptions.HTTPError as e:
+            self.logger.error(f"HTTP error adding to blocklist: {e.response.status_code} - {e.response.text}")
+            return False
+        except Exception as e:
+            self.logger.error(f"Failed to add to blocklist: {str(e)}")
             return False
 
     def get_series(self, series_id=None):

@@ -12,10 +12,13 @@ class QBittorrentClient(BaseDownloadClient):
     def __init__(self, config, logger):
         super().__init__(config, logger)
         self.session = requests.Session()
+        # Ensure URL has proper format for CSRF headers
+        self.base_url = self.config.url.rstrip('/')
         # Set headers required for qBittorrent CSRF protection
+        # Referer needs trailing slash, Origin does not
         self.session.headers.update({
-            'Referer': self.config.url,
-            'Origin': self.config.url
+            'Referer': f"{self.base_url}/",
+            'Origin': self.base_url
         })
         self._authenticated = False
 
@@ -23,12 +26,16 @@ class QBittorrentClient(BaseDownloadClient):
         """Ensure authentication before making requests (lazy initialization)"""
         if not self._authenticated:
             try:
-                url = f"{self.config.url}/api/v2/auth/login"
+                # Clear cookies before re-authenticating to ensure fresh session
+                self.session.cookies.clear()
+
+                url = f"{self.base_url}/api/v2/auth/login"
                 data = {
                     'username': self.config.username,
                     'password': self.config.password
                 }
 
+                self.logger.debug(f"Authenticating to qBittorrent at {url}")
                 response = self.session.post(url, data=data, timeout=10)
 
                 if response.status_code == 200 and response.text == 'Ok.':
@@ -41,7 +48,7 @@ class QBittorrentClient(BaseDownloadClient):
                 self.logger.error(f"Failed to authenticate with qBittorrent: {str(e)}")
                 raise
 
-    def _make_authenticated_request(self, method, url, max_retries=1, **kwargs):
+    def _make_authenticated_request(self, method, url, max_retries=2, **kwargs):
         """
         Make an authenticated request with automatic retry on 403 (session expired)
 
@@ -58,6 +65,8 @@ class QBittorrentClient(BaseDownloadClient):
             self._ensure_authenticated()
 
             try:
+                self.logger.debug(f"{method} request to {url} (attempt {attempt + 1}/{max_retries + 1})")
+
                 if method.upper() == 'GET':
                     response = self.session.get(url, timeout=10, **kwargs)
                 elif method.upper() == 'POST':
@@ -67,7 +76,7 @@ class QBittorrentClient(BaseDownloadClient):
 
                 # If we get a 403, the session likely expired
                 if response.status_code == 403 and attempt < max_retries:
-                    self.logger.warning("qBittorrent session expired (403), re-authenticating...")
+                    self.logger.warning(f"qBittorrent returned 403 (attempt {attempt + 1}), re-authenticating...")
                     self._authenticated = False
                     continue
 
@@ -75,7 +84,7 @@ class QBittorrentClient(BaseDownloadClient):
 
             except requests.exceptions.RequestException as e:
                 if attempt < max_retries:
-                    self.logger.warning(f"Request failed, retrying... ({str(e)})")
+                    self.logger.warning(f"Request failed (attempt {attempt + 1}), retrying... ({str(e)})")
                     self._authenticated = False
                     continue
                 raise
@@ -86,9 +95,10 @@ class QBittorrentClient(BaseDownloadClient):
         """Get files in a torrent"""
         try:
             # Get torrent info with automatic session retry
-            url = f"{self.config.url}/api/v2/torrents/files"
+            url = f"{self.base_url}/api/v2/torrents/files"
             params = {'hash': download_id}
 
+            self.logger.debug(f"Getting torrent files for hash: {download_id}")
             response = self._make_authenticated_request('GET', url, params=params)
             response.raise_for_status()
 
@@ -97,7 +107,7 @@ class QBittorrentClient(BaseDownloadClient):
             # Extract file names
             files = [file_info['name'] for file_info in files_data]
 
-            self.logger.debug(f"Retrieved {len(files)} files from qBittorrent")
+            self.logger.debug(f"Retrieved {len(files)} files from qBittorrent for {download_id}")
 
             return {'files': files}
 
@@ -108,7 +118,7 @@ class QBittorrentClient(BaseDownloadClient):
     def remove_torrent(self, download_id, delete_files=True):
         """Remove torrent from qBittorrent"""
         try:
-            url = f"{self.config.url}/api/v2/torrents/delete"
+            url = f"{self.base_url}/api/v2/torrents/delete"
             data = {
                 'hashes': download_id,
                 'deleteFiles': 'true' if delete_files else 'false'

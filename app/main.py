@@ -69,11 +69,14 @@ def handle_webhook():
             result = webhook_handler.process_grab_event(payload)
 
             # Update statistics
-            if result.get('status') == 'removed':
+            status = result.get('status')
+            if status == 'removed':
+                stats.increment_processed()
                 stats.increment_blocked()
                 stats.add_blocked_file(result.get('blocked_files', []))
-            elif result.get('status') == 'clean':
+            elif status == 'clean':
                 stats.increment_processed()
+            # Note: errors are tracked in the exception handler below
 
             return jsonify(result), 200
         else:

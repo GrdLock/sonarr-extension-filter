@@ -9,7 +9,9 @@ services:
     volumes:
       - ./config.yaml:/config/config.yaml
       - ./logs:/app/logs
+      - ./data:/data
     environment:
+      - STATS_DIR=/data
       # Optional: Override config with environment variables
       - SONARR_URL=${SONARR_URL:-}
       - SONARR_API_KEY=${SONARR_API_KEY:-}

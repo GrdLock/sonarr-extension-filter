@@ -114,6 +114,10 @@ class WebhookHandler:
                 self.logger.warning(f"Found {len(blocked_files)} blocked files in {release_title}")
                 self.logger.warning(f"Blocked files: {', '.join(blocked_files)}")
 
+                # Extract series information for blocklist
+                series_id = payload.get('series', {}).get('id')
+                self.logger.debug(f"Series ID: {series_id}")
+
                 # Remove the download
                 queue_id = self._get_queue_id(download_id)
 
@@ -128,6 +132,14 @@ class WebhookHandler:
                     )
 
                     if success:
+                        # If blocklist was requested, verify and add as fallback if needed
+                        if blocklist and series_id:
+                            self.logger.info("Ensuring blocklist was applied...")
+                            # Try to add directly to blocklist as a fallback
+                            # This ensures the item is blocklisted even if the queue removal
+                            # method didn't properly add it to the blocklist
+                            self.sonarr_api.add_to_blocklist(series_id, release_title)
+
                         self.logger.info(f"Successfully removed {release_title} from queue")
                         return {
                             "status": "removed",
@@ -143,6 +155,15 @@ class WebhookHandler:
                         }
                 else:
                     self.logger.error(f"Could not find queue ID for {download_id}")
+                    # If we can't find the queue ID but blocklist is requested,
+                    # try to add directly to blocklist
+                    action = self.config.filtering.action
+                    blocklist = 'blocklist' in action.lower()
+
+                    if blocklist and series_id:
+                        self.logger.info("Attempting direct blocklist add since queue ID not found")
+                        self.sonarr_api.add_to_blocklist(series_id, release_title)
+
                     return {
                         "status": "error",
                         "message": "Could not find queue ID"
@@ -173,8 +194,24 @@ class WebhookHandler:
         """
         queue_items = self.sonarr_api.get_queue()
 
+        # Debug logging
+        self.logger.debug(f"Looking for download ID: {download_id}")
+        self.logger.debug(f"Found {len(queue_items)} items in queue")
+
+        # Case-insensitive comparison for torrent hashes
+        download_id_lower = download_id.lower() if download_id else ''
+
         for item in queue_items:
-            if item.get('downloadId') == download_id:
+            queue_download_id = item.get('downloadId', '')
+            queue_download_id_lower = queue_download_id.lower() if queue_download_id else ''
+
+            if queue_download_id_lower == download_id_lower:
+                self.logger.debug(f"Found match! Queue ID: {item.get('id')}")
                 return item.get('id')
 
+        # If no match found, log all queue download IDs for debugging
+        self.logger.warning(f"No queue match found for {download_id}")
+        if queue_items:
+            queue_ids = [item.get('downloadId', 'N/A') for item in queue_items[:5]]  # Show first 5
+            self.logger.debug(f"Queue download IDs: {', '.join(queue_ids)}")
         return None

@@ -5,13 +5,39 @@ Statistics tracking for the application
 from datetime import datetime
 from collections import defaultdict
 import threading
+import json
+import os
+from pathlib import Path
 
 
 class Statistics:
-    """Track application statistics"""
+    """Track application statistics with persistent storage"""
 
-    def __init__(self):
+    def __init__(self, stats_file=None):
         self.lock = threading.Lock()
+
+        # Default stats file location
+        if stats_file is None:
+            # Try multiple locations in order of preference
+            stats_dir = os.getenv('STATS_DIR')
+            if not stats_dir:
+                # Check for common directories
+                for directory in ['/data', '/app/logs', 'logs', '.']:
+                    if os.path.isdir(directory) or directory == '.':
+                        stats_dir = directory
+                        break
+
+            try:
+                os.makedirs(stats_dir, exist_ok=True)
+            except:
+                # Fallback to current directory if we can't create the stats dir
+                stats_dir = '.'
+
+            self.stats_file = os.path.join(stats_dir, 'statistics.json')
+        else:
+            self.stats_file = stats_file
+
+        # Initialize with default values
         self.start_time = datetime.now()
         self.total_processed = 0
         self.total_blocked = 0
@@ -21,20 +47,68 @@ class Statistics:
         self.recent_activity = []
         self.max_recent = 50
 
+        # Load existing statistics if available
+        self._load_stats()
+
+    def _load_stats(self):
+        """Load statistics from persistent storage"""
+        try:
+            if os.path.exists(self.stats_file):
+                with open(self.stats_file, 'r') as f:
+                    data = json.load(f)
+
+                self.start_time = datetime.fromisoformat(data.get('start_time', datetime.now().isoformat()))
+                self.total_processed = data.get('total_processed', 0)
+                self.total_blocked = data.get('total_blocked', 0)
+                self.total_errors = data.get('total_errors', 0)
+                self.extension_counts = defaultdict(int, data.get('extension_counts', {}))
+                self.recent_activity = data.get('recent_activity', [])
+        except Exception as e:
+            # If loading fails, just use default values
+            pass
+
+    def _save_stats(self):
+        """Save statistics to persistent storage"""
+        try:
+            data = {
+                'start_time': self.start_time.isoformat(),
+                'total_processed': self.total_processed,
+                'total_blocked': self.total_blocked,
+                'total_errors': self.total_errors,
+                'extension_counts': dict(self.extension_counts),
+                'recent_activity': self.recent_activity
+            }
+
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(self.stats_file), exist_ok=True)
+
+            # Write atomically
+            temp_file = f"{self.stats_file}.tmp"
+            with open(temp_file, 'w') as f:
+                json.dump(data, f, indent=2)
+            os.replace(temp_file, self.stats_file)
+
+        except Exception as e:
+            # If saving fails, log but don't crash
+            pass
+
     def increment_processed(self):
         """Increment processed count"""
         with self.lock:
             self.total_processed += 1
+            self._save_stats()
 
     def increment_blocked(self):
         """Increment blocked count"""
         with self.lock:
             self.total_blocked += 1
+            self._save_stats()
 
     def increment_errors(self):
         """Increment error count"""
         with self.lock:
             self.total_errors += 1
+            self._save_stats()
 
     def add_blocked_file(self, files):
         """
@@ -59,6 +133,8 @@ class Statistics:
                 if len(self.recent_activity) > self.max_recent:
                     self.recent_activity = self.recent_activity[:self.max_recent]
 
+            self._save_stats()
+
     def add_activity(self, activity_type, message):
         """
         Add general activity
@@ -77,6 +153,8 @@ class Statistics:
             if len(self.recent_activity) > self.max_recent:
                 self.recent_activity = self.recent_activity[:self.max_recent]
 
+            self._save_stats()
+
     def get_stats(self):
         """
         Get current statistics
@@ -85,6 +163,9 @@ class Statistics:
             dict: Statistics dictionary
         """
         with self.lock:
+            # Reload from disk to get latest data
+            self._load_stats()
+
             uptime = datetime.now() - self.start_time
 
             return {
@@ -107,3 +188,4 @@ class Statistics:
             self.blocked_files = []
             self.extension_counts = defaultdict(int)
             self.recent_activity = []
+            self._save_stats()

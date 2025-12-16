@@ -27,6 +27,10 @@ wheels/
 logs/
 *.log
 
+# Data
+data/
+statistics.json
+
 # Config
 config.yaml
 .env
