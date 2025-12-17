@@ -94,6 +94,15 @@ class WebhookHandler:
                     "message": "No download ID provided"
                 }
 
+            # Get queue ID IMMEDIATELY before it disappears from the queue
+            # This must be done before waiting for the torrent, as Sonarr may process
+            # the item and remove it from the queue during the wait
+            queue_id = self._get_queue_id(download_id)
+            if queue_id:
+                self.logger.debug(f"Found queue ID {queue_id} for download {download_id}")
+            else:
+                self.logger.warning(f"Queue ID not found for {download_id} - may not be able to blocklist")
+
             # Get torrent info from download client with retry logic
             torrent_data = self._wait_for_torrent(download_id)
 
@@ -118,8 +127,7 @@ class WebhookHandler:
                 series_id = payload.get('series', {}).get('id')
                 self.logger.debug(f"Series ID: {series_id}")
 
-                # Try to remove from Sonarr queue first
-                queue_id = self._get_queue_id(download_id)
+                # Try to remove from Sonarr queue first (using queue_id captured earlier)
                 removed_from_queue = False
 
                 if queue_id:
@@ -147,11 +155,39 @@ class WebhookHandler:
                         client_success = self.download_client.remove_torrent(download_id, delete_files=True)
                         if client_success:
                             self.logger.info(f"Successfully removed torrent {download_id} from download client")
+
+                            # Try to blocklist via history if blocklisting is enabled
+                            action = self.config.filtering.action
+                            blocklist = 'blocklist' in action.lower()
+                            blocklisted = False
+
+                            if blocklist:
+                                self.logger.info("Attempting to blocklist via history API since queue was empty")
+                                history_items = self.sonarr_api.get_history(download_id=download_id)
+
+                                if history_items:
+                                    # Find the most recent 'grabbed' event
+                                    grabbed_item = None
+                                    for item in history_items:
+                                        if item.get('eventType') == 'grabbed':
+                                            grabbed_item = item
+                                            break
+
+                                    if grabbed_item:
+                                        history_id = grabbed_item.get('id')
+                                        self.logger.info(f"Found history record {history_id} for download {download_id}")
+                                        blocklisted = self.sonarr_api.blocklist_by_history_id(history_id)
+                                    else:
+                                        self.logger.warning(f"No 'grabbed' history event found for {download_id}")
+                                else:
+                                    self.logger.warning(f"No history records found for {download_id}")
+
                             return {
                                 "status": "removed",
                                 "message": f"Removed download with {len(blocked_files)} blocked file(s) directly from client",
                                 "blocked_files": blocked_files,
-                                "removed_from": "download_client"
+                                "removed_from": "download_client",
+                                "blocklisted": blocklisted
                             }
                         else:
                             self.logger.error(f"Failed to remove torrent {download_id} from download client")

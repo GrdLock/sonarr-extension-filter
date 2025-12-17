@@ -125,6 +125,74 @@ class SonarrAPI:
             self.logger.error(f"Failed to get blocklist from Sonarr: {str(e)}")
             return []
 
+    def get_history(self, download_id=None, event_type=None):
+        """
+        Get history items
+
+        Args:
+            download_id: Optional download ID to filter by
+            event_type: Optional event type to filter by
+
+        Returns:
+            list: List of history items
+        """
+        try:
+            url = f"{self.base_url}/history"
+            params = {}
+            if download_id:
+                params['downloadId'] = download_id
+            if event_type:
+                params['eventType'] = event_type
+
+            response = requests.get(url, headers=self.headers, params=params, timeout=10)
+            response.raise_for_status()
+
+            data = response.json()
+            records = data.get('records', [])
+
+            self.logger.debug(f"Retrieved {len(records)} history items")
+            return records
+
+        except Exception as e:
+            self.logger.error(f"Failed to get history from Sonarr: {str(e)}")
+            return []
+
+    def blocklist_by_history_id(self, history_id):
+        """
+        Add an item to blocklist using history ID
+
+        Args:
+            history_id: History record ID
+
+        Returns:
+            bool: True if successful
+        """
+        try:
+            url = f"{self.base_url}/history/failed/{history_id}"
+
+            self.logger.info(f"Adding history item {history_id} to blocklist")
+
+            response = requests.post(
+                url,
+                headers=self.headers,
+                timeout=10
+            )
+
+            self.logger.debug(f"Response status: {response.status_code}")
+            self.logger.debug(f"Response body: {response.text}")
+
+            response.raise_for_status()
+
+            self.logger.info(f"Successfully blocklisted history item {history_id}")
+            return True
+
+        except requests.exceptions.HTTPError as e:
+            self.logger.error(f"HTTP error blocklisting history item {history_id}: {e.response.status_code} - {e.response.text}")
+            return False
+        except Exception as e:
+            self.logger.error(f"Failed to blocklist history item {history_id}: {str(e)}")
+            return False
+
     def get_series(self, series_id=None):
         """
         Get series information
