@@ -118,8 +118,9 @@ class WebhookHandler:
                 series_id = payload.get('series', {}).get('id')
                 self.logger.debug(f"Series ID: {series_id}")
 
-                # Remove the download
+                # Try to remove from Sonarr queue first
                 queue_id = self._get_queue_id(download_id)
+                removed_from_queue = False
 
                 if queue_id:
                     action = self.config.filtering.action
@@ -132,41 +133,47 @@ class WebhookHandler:
                     )
 
                     if success:
-                        # If blocklist was requested, verify and add as fallback if needed
-                        if blocklist and series_id:
-                            self.logger.info("Ensuring blocklist was applied...")
-                            # Try to add directly to blocklist as a fallback
-                            # This ensures the item is blocklisted even if the queue removal
-                            # method didn't properly add it to the blocklist
-                            self.sonarr_api.add_to_blocklist(series_id, release_title)
-
-                        self.logger.info(f"Successfully removed {release_title} from queue")
-                        return {
-                            "status": "removed",
-                            "message": f"Removed download with {len(blocked_files)} blocked file(s)",
-                            "blocked_files": blocked_files,
-                            "blocklisted": blocklist
-                        }
+                        self.logger.info(f"Successfully removed {release_title} from Sonarr queue")
+                        removed_from_queue = True
                     else:
-                        self.logger.error(f"Failed to remove {release_title} from queue")
+                        self.logger.error(f"Failed to remove {release_title} from Sonarr queue")
+                else:
+                    self.logger.warning(f"Could not find queue ID for {download_id} - item may have already been processed by Sonarr")
+
+                # If we couldn't remove from queue, remove directly from download client
+                if not removed_from_queue:
+                    self.logger.info(f"Removing torrent directly from download client: {download_id}")
+                    try:
+                        client_success = self.download_client.remove_torrent(download_id, delete_files=True)
+                        if client_success:
+                            self.logger.info(f"Successfully removed torrent {download_id} from download client")
+                            return {
+                                "status": "removed",
+                                "message": f"Removed download with {len(blocked_files)} blocked file(s) directly from client",
+                                "blocked_files": blocked_files,
+                                "removed_from": "download_client"
+                            }
+                        else:
+                            self.logger.error(f"Failed to remove torrent {download_id} from download client")
+                            return {
+                                "status": "error",
+                                "message": "Failed to remove from download client"
+                            }
+                    except Exception as e:
+                        self.logger.error(f"Error removing torrent from download client: {str(e)}")
                         return {
                             "status": "error",
-                            "message": "Failed to remove from queue"
+                            "message": f"Error removing from download client: {str(e)}"
                         }
                 else:
-                    self.logger.error(f"Could not find queue ID for {download_id}")
-                    # If we can't find the queue ID but blocklist is requested,
-                    # try to add directly to blocklist
+                    # Successfully removed from queue
                     action = self.config.filtering.action
                     blocklist = 'blocklist' in action.lower()
-
-                    if blocklist and series_id:
-                        self.logger.info("Attempting direct blocklist add since queue ID not found")
-                        self.sonarr_api.add_to_blocklist(series_id, release_title)
-
                     return {
-                        "status": "error",
-                        "message": "Could not find queue ID"
+                        "status": "removed",
+                        "message": f"Removed download with {len(blocked_files)} blocked file(s)",
+                        "blocked_files": blocked_files,
+                        "blocklisted": blocklist
                     }
             else:
                 self.logger.info(f"No blocked extensions found in {release_title}")

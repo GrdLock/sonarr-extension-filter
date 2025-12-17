@@ -29,13 +29,19 @@ class Statistics:
 
             try:
                 os.makedirs(stats_dir, exist_ok=True)
-            except:
+            except Exception as e:
                 # Fallback to current directory if we can't create the stats dir
+                import sys
+                print(f"Warning: Could not create stats directory {stats_dir}: {e}. Using current directory.", file=sys.stderr)
                 stats_dir = '.'
 
             self.stats_file = os.path.join(stats_dir, 'statistics.json')
         else:
             self.stats_file = stats_file
+
+        # Print stats file location for debugging
+        import sys
+        print(f"Statistics file location: {os.path.abspath(self.stats_file)}", file=sys.stderr)
 
         # Initialize with default values
         self.start_time = datetime.now()
@@ -63,9 +69,11 @@ class Statistics:
                 self.total_errors = data.get('total_errors', 0)
                 self.extension_counts = defaultdict(int, data.get('extension_counts', {}))
                 self.recent_activity = data.get('recent_activity', [])
+            # else: file doesn't exist yet, will be created on first save
         except Exception as e:
-            # If loading fails, just use default values
-            pass
+            # If loading fails, print error for debugging
+            import sys
+            print(f"Error loading statistics from {self.stats_file}: {e}", file=sys.stderr)
 
     def _save_stats(self):
         """Save statistics to persistent storage"""
@@ -80,7 +88,9 @@ class Statistics:
             }
 
             # Ensure directory exists
-            os.makedirs(os.path.dirname(self.stats_file), exist_ok=True)
+            stats_dir = os.path.dirname(self.stats_file)
+            if stats_dir:  # Only create if dirname is not empty
+                os.makedirs(stats_dir, exist_ok=True)
 
             # Write atomically
             temp_file = f"{self.stats_file}.tmp"
@@ -89,8 +99,9 @@ class Statistics:
             os.replace(temp_file, self.stats_file)
 
         except Exception as e:
-            # If saving fails, log but don't crash
-            pass
+            # If saving fails, print error for debugging
+            import sys
+            print(f"Error saving statistics to {self.stats_file}: {e}", file=sys.stderr)
 
     def increment_processed(self):
         """Increment processed count"""

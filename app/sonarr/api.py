@@ -125,49 +125,6 @@ class SonarrAPI:
             self.logger.error(f"Failed to get blocklist from Sonarr: {str(e)}")
             return []
 
-    def add_to_blocklist(self, series_id, source_title):
-        """
-        Directly add an item to the blocklist
-
-        Args:
-            series_id: Series ID
-            source_title: Source release title
-
-        Returns:
-            bool: True if successful
-        """
-        try:
-            url = f"{self.base_url}/blocklist"
-            payload = {
-                'seriesId': series_id,
-                'sourceTitle': source_title
-            }
-
-            self.logger.info(f"Adding to blocklist: {source_title}")
-            self.logger.debug(f"Payload: {payload}")
-
-            response = requests.post(
-                url,
-                headers=self.headers,
-                json=payload,
-                timeout=10
-            )
-
-            self.logger.debug(f"Response status: {response.status_code}")
-            self.logger.debug(f"Response body: {response.text}")
-
-            response.raise_for_status()
-
-            self.logger.info(f"Successfully added {source_title} to blocklist")
-            return True
-
-        except requests.exceptions.HTTPError as e:
-            self.logger.error(f"HTTP error adding to blocklist: {e.response.status_code} - {e.response.text}")
-            return False
-        except Exception as e:
-            self.logger.error(f"Failed to add to blocklist: {str(e)}")
-            return False
-
     def get_series(self, series_id=None):
         """
         Get series information
