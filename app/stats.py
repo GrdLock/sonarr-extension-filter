@@ -106,18 +106,21 @@ class Statistics:
     def increment_processed(self):
         """Increment processed count"""
         with self.lock:
+            self._load_stats()  # Reload from disk to get latest count
             self.total_processed += 1
             self._save_stats()
 
     def increment_blocked(self):
         """Increment blocked count"""
         with self.lock:
+            self._load_stats()  # Reload from disk to get latest count
             self.total_blocked += 1
             self._save_stats()
 
     def increment_errors(self):
         """Increment error count"""
         with self.lock:
+            self._load_stats()  # Reload from disk to get latest count
             self.total_errors += 1
             self._save_stats()
 
@@ -129,6 +132,7 @@ class Statistics:
             files: List of blocked file paths
         """
         with self.lock:
+            self._load_stats()  # Reload from disk to get latest data
             for file_path in files:
                 ext = file_path.split('.')[-1].lower() if '.' in file_path else 'unknown'
                 self.extension_counts[f'.{ext}'] += 1
@@ -155,6 +159,7 @@ class Statistics:
             message: Activity message
         """
         with self.lock:
+            self._load_stats()  # Reload from disk to get latest data
             self.recent_activity.insert(0, {
                 'time': datetime.now().isoformat(),
                 'type': activity_type,
